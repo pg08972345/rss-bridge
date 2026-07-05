@@ -163,8 +163,15 @@ class YoutubeBridge extends BridgeAbstract
                 // playlist probably doesnt exists
                 throw new \Exception('Unable to find playlist: ' . $url_listing);
             }
-            $jsonData = $jsonData->tabRenderer->content->sectionListRenderer->contents[0]->itemSectionRenderer;
-            $jsonData = $jsonData->contents[0]->playlistVideoListRenderer->contents;
+
+            // Keeping the old JSON paths just in case YouTube is using them for some pages
+            if (isset($jsonData->tabRenderer->content->sectionListRenderer->contents[0]->itemSectionRenderer->contents[0]->playlistVideoListRenderer)) {
+                $jsonData = $jsonData->tabRenderer->content->sectionListRenderer->contents[0]->itemSectionRenderer;
+                $jsonData = $jsonData->contents[0]->playlistVideoListRenderer->contents;
+            } elseif (isset($jsonData->tabRenderer->content->sectionListRenderer->contents[0]->itemSectionRenderer->contents)) {
+                $jsonData = $jsonData->tabRenderer->content->sectionListRenderer->contents[0]->itemSectionRenderer->contents;
+            }
+
             $item_count = count($jsonData);
 
             if ($item_count > 15 || $filterByDuration) {
@@ -451,6 +458,12 @@ class YoutubeBridge extends BridgeAbstract
             } elseif (isset($item->richItemRenderer->content->lockupViewModel)) {
                 // Newer YouTube layout: richItemRenderer can wrap a lockupViewModel rather than a videoRenderer.
                 $wrapper = $this->wrapLockupViewModel($item->richItemRenderer->content->lockupViewModel);
+                if ($wrapper === null) {
+                    continue;
+                }
+            } elseif (isset($item->lockupViewModel)) {
+                // Newer YouTube layout: lockupViewModel can also be a direct child of itemSectionRenderer->contents.
+                $wrapper = $this->wrapLockupViewModel($item->lockupViewModel);
                 if ($wrapper === null) {
                     continue;
                 }
